@@ -1,0 +1,2 @@
+# Local runtime configuration. Never commit credentials or environment values.
+.env
