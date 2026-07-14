@@ -24,7 +24,7 @@ class AuthPage extends ConsumerWidget {
               style: Theme.of(context).textTheme.headlineMedium,
             ),
             const SizedBox(height: 12),
-            const Text('Securely sign in to save your NexSpend profile.'),
+            const Text('Securely sign in to save your NexSpend data.'),
             const Spacer(),
             FilledButton.icon(
               icon: const Icon(Icons.g_mobiledata_rounded, size: 30),

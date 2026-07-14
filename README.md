@@ -3,7 +3,7 @@
 ## Run the Flutter app
 
 1. Create a Supabase project and enable Google under **Authentication → Providers**.
-2. Apply [`supabase/migrations/20260714000000_create_profiles.sql`](supabase/migrations/20260714000000_create_profiles.sql) in the Supabase SQL editor. It creates and backfills `public.profiles`, enables RLS, and provisions profiles for future Auth users.
+2. Apply the migrations in order from [`supabase/migrations`](supabase/migrations) in the Supabase SQL editor. They create and backfill `public.profiles`, then create the owner-scoped `public.expenses` table with RLS.
 3. Add `com.nexspend.nexspend://login-callback/` to Supabase Authentication URL Configuration.
 4. Configure Android/iOS OAuth client credentials with Google, including the platform callback settings required by Supabase.
 5. The root `.env` file supplies the Flutter runtime settings. Run:

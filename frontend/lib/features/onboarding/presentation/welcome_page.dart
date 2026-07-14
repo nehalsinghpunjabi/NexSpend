@@ -28,7 +28,7 @@ class WelcomePage extends StatelessWidget {
             ),
             const Spacer(),
             FilledButton(
-              onPressed: () => context.go('/persona'),
+              onPressed: () => context.go('/auth'),
               child: const Text('Get Started'),
             ),
           ],
