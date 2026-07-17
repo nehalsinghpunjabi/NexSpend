@@ -62,14 +62,6 @@ Ask questions like:
 ### AI
 - Groq API
 
-## Screenshots
-
-(Add screenshots here)
-
-## Demo Video
-
-(Add your unlisted YouTube link here)
-
 ## Installation
 
 ### Frontend
