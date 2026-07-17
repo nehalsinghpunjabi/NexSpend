@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 import '../../../core/theme/design_tokens.dart';
 import '../domain/entities/expense.dart';
+import '../domain/services/natural_language_expense_parser.dart';
 import 'expense_providers.dart';
 
 class AddExpenseSheet extends ConsumerStatefulWidget {
@@ -36,10 +38,14 @@ class _AddExpenseSheetState extends ConsumerState<AddExpenseSheet> {
   final _amountController = TextEditingController();
   final _merchantController = TextEditingController();
   final _notesController = TextEditingController();
+  final _naturalLanguageController = TextEditingController();
+  final _parser = const NaturalLanguageExpenseParser();
+  final _speech = stt.SpeechToText();
   String _category = _categories.first;
   String _paymentMethod = _paymentMethods.first;
   DateTime? _expenseDate = DateTime.now();
   bool _saving = false;
+  bool _listening = false;
 
   bool get _isEditing => widget.expense != null;
 
@@ -75,6 +81,8 @@ class _AddExpenseSheetState extends ConsumerState<AddExpenseSheet> {
     _amountController.dispose();
     _merchantController.dispose();
     _notesController.dispose();
+    _naturalLanguageController.dispose();
+    _speech.stop();
     super.dispose();
   }
 
@@ -129,6 +137,101 @@ class _AddExpenseSheetState extends ConsumerState<AddExpenseSheet> {
     }
   }
 
+  Future<void> _parseNaturalLanguage(String text) async {
+    final draft = _parser.parse(text);
+    if (!draft.isComplete || draft.confidence < .7) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Please include an amount and merchant, for example “Spent ₹450 at Starbucks”.',
+            ),
+          ),
+        );
+      }
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirm expense'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('₹${draft.amount!.toStringAsFixed(0)} at ${draft.merchant}'),
+            const SizedBox(height: 6),
+            Text('Category: ${draft.category}'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() {
+      _amountController.text = draft.amount!.toStringAsFixed(2);
+      _merchantController.text = draft.merchant!;
+      _category = _categories.contains(draft.category)
+          ? draft.category
+          : 'Other';
+      _notesController.text = text;
+    });
+    await _save();
+  }
+
+  Future<void> _startVoiceEntry() async {
+    final available = await _speech.initialize(
+      onStatus: (status) {
+        if (mounted && (status == 'done' || status == 'notListening')) {
+          setState(() => _listening = false);
+        }
+      },
+      onError: (_) {
+        if (mounted) {
+          setState(() => _listening = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Voice entry is unavailable on this device.'),
+            ),
+          );
+        }
+      },
+    );
+    if (!available) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Speech recognition is not available on this device.',
+            ),
+          ),
+        );
+      }
+      return;
+    }
+    setState(() => _listening = true);
+    await _speech.listen(
+      onResult: (result) async {
+        if (result.finalResult) {
+          await _speech.stop();
+          if (mounted) {
+            setState(() => _listening = false);
+            await _parseNaturalLanguage(result.recognizedWords);
+          }
+        }
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) => SafeArea(
     child: Padding(
@@ -155,9 +258,46 @@ class _AddExpenseSheetState extends ConsumerState<AddExpenseSheet> {
                 ),
               ),
               const SizedBox(height: 24),
-              Text(
-                _isEditing ? 'Edit expense' : 'Add expense',
-                style: Theme.of(context).textTheme.headlineSmall,
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _isEditing ? 'Edit expense' : 'Add expense',
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: _naturalLanguageController,
+                textCapitalization: TextCapitalization.sentences,
+                onSubmitted: _parseNaturalLanguage,
+                decoration: InputDecoration(
+                  labelText: 'Quick add by text',
+                  hintText: 'Spent ₹450 at Starbucks',
+                  prefixIcon: const Icon(Icons.auto_awesome_outlined),
+                  suffixIcon: IconButton(
+                    tooltip: 'Parse expense',
+                    icon: const Icon(Icons.arrow_upward_rounded),
+                    onPressed: () =>
+                        _parseNaturalLanguage(_naturalLanguageController.text),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                onPressed: _listening ? _speech.stop : _startVoiceEntry,
+                icon: Icon(
+                  _listening ? Icons.mic_rounded : Icons.mic_none_rounded,
+                ),
+                label: Text(
+                  _listening ? 'Listening… tap to stop' : 'Voice entry',
+                ),
               ),
               const SizedBox(height: 20),
               TextFormField(

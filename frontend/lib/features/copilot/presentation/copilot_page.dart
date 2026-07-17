@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/design_tokens.dart';
+import '../../settings/presentation/settings_providers.dart';
 import '../domain/models/ai_models.dart';
 import 'copilot_providers.dart';
 
@@ -83,8 +85,11 @@ class _CopilotPageState extends ConsumerState<CopilotPage> {
                         ),
                       ),
                       Text(
-                        'Your data-backed financial copilot',
-                        style: theme.textTheme.bodySmall,
+                        '● Active · Financial Copilot',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.tertiary,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ],
                   ),
@@ -154,24 +159,35 @@ class _CopilotPageState extends ConsumerState<CopilotPage> {
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-            child: TextField(
-              controller: _controller,
-              minLines: 1,
-              maxLines: 4,
-              onSubmitted: _send,
-              textInputAction: TextInputAction.send,
-              decoration: InputDecoration(
-                hintText: 'Ask about your spending…',
-                filled: true,
-                fillColor: theme.colorScheme.surfaceContainerHighest,
-                border: OutlineInputBorder(
-                  borderRadius: NexSpendRadii.large,
-                  borderSide: BorderSide.none,
+            child: Container(
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: .72,
                 ),
-                suffixIcon: IconButton(
-                  tooltip: 'Send',
-                  icon: const Icon(Icons.arrow_upward_rounded, size: 20),
-                  onPressed: _send,
+                borderRadius: NexSpendRadii.large,
+                border: Border.all(
+                  color: theme.colorScheme.outlineVariant.withValues(alpha: .7),
+                ),
+              ),
+              child: TextField(
+                controller: _controller,
+                minLines: 1,
+                maxLines: 4,
+                onSubmitted: _send,
+                textInputAction: TextInputAction.send,
+                decoration: InputDecoration(
+                  hintText: 'Ask about your spending…',
+                  filled: true,
+                  fillColor: Colors.transparent,
+                  border: OutlineInputBorder(
+                    borderRadius: NexSpendRadii.large,
+                    borderSide: BorderSide.none,
+                  ),
+                  suffixIcon: IconButton(
+                    tooltip: 'Send',
+                    icon: const Icon(Icons.arrow_upward_rounded, size: 20),
+                    onPressed: _send,
+                  ),
                 ),
               ),
             ),
@@ -271,11 +287,11 @@ class _InsightCard extends StatelessWidget {
   };
 }
 
-class _ChatBubble extends StatelessWidget {
+class _ChatBubble extends ConsumerWidget {
   const _ChatBubble({required this.message});
   final AiChatMessage message;
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final mine = message.role == AiMessageRole.user;
     final scheme = Theme.of(context).colorScheme;
     final color = mine
@@ -288,6 +304,19 @@ class _ChatBubble extends StatelessWidget {
         : message.isError
         ? scheme.onErrorContainer
         : scheme.onSurfaceVariant;
+    final text =
+        !mine &&
+            ref.watch(
+              settingsControllerProvider.select((value) => value.privacyMode),
+            )
+        ? message.text.replaceAll(
+            RegExp(
+              r'(?:₹|Rs\.?|INR)\s*[0-9][0-9,]*(?:\.[0-9]{1,2})?',
+              caseSensitive: false,
+            ),
+            '•••••',
+          )
+        : message.text;
     return TweenAnimationBuilder<double>(
       duration: const Duration(milliseconds: 220),
       tween: Tween(begin: 0, end: 1),
@@ -318,9 +347,9 @@ class _ChatBubble extends StatelessWidget {
             children: [
               if (message.isLoading)
                 SizedBox(
-                  width: 72,
                   height: 20,
                   child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       SizedBox(
                         width: 14,
@@ -339,10 +368,44 @@ class _ChatBubble extends StatelessWidget {
                   ),
                 )
               else ...[
-                Text(
-                  message.text,
-                  style: TextStyle(color: foreground, height: 1.4),
-                ),
+                mine || message.isError
+                    ? Text(
+                        text,
+                        style: TextStyle(color: foreground, height: 1.4),
+                      )
+                    : MarkdownBody(
+                        data: text,
+                        selectable: true,
+                        styleSheet:
+                            MarkdownStyleSheet.fromTheme(
+                              Theme.of(context),
+                            ).copyWith(
+                              p: TextStyle(color: foreground, height: 1.45),
+                              h1: Theme.of(context).textTheme.titleLarge
+                                  ?.copyWith(
+                                    color: foreground,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                              h2: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(
+                                    color: foreground,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                              h3: Theme.of(context).textTheme.titleSmall
+                                  ?.copyWith(
+                                    color: foreground,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                              strong: TextStyle(
+                                color: foreground,
+                                fontWeight: FontWeight.w800,
+                              ),
+                              em: TextStyle(color: foreground),
+                              listBullet: TextStyle(color: foreground),
+                              blockSpacing: 10,
+                              listIndent: 20,
+                            ),
+                      ),
                 const SizedBox(height: 6),
                 Text(
                   MaterialLocalizations.of(

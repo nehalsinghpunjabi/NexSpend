@@ -2,25 +2,17 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/design_tokens.dart';
+import '../../../core/presentation/private_amount.dart';
 import '../../expenses/presentation/add_expense_sheet.dart';
-import '../../expenses/presentation/expense_empty_state.dart';
 import '../../expenses/presentation/expense_providers.dart';
 import 'dashboard_providers.dart';
 
 class DashboardPage extends ConsumerWidget {
-  const DashboardPage({super.key});
+  const DashboardPage({super.key, this.onOpenSettings});
+  final VoidCallback? onOpenSettings;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final metrics = ref.watch(dashboardMetricsProvider);
-    if (metrics.monthlyTrend.every((point) => point.amount == 0)) {
-      return const SafeArea(
-        child: ExpenseEmptyState(
-          icon: Icons.insights_outlined,
-          title: 'Your money story starts here',
-          message: 'Add an expense to unlock your spending overview.',
-        ),
-      );
-    }
     final categoryEntries = metrics.categories.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
     final merchantEntries = metrics.merchants.entries.toList()
@@ -30,13 +22,49 @@ class DashboardPage extends ConsumerWidget {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(24, 24, 24, 124),
         children: [
-          Text('Overview', style: Theme.of(context).textTheme.headlineMedium),
-          const SizedBox(height: 6),
-          Text(
-            'A clear view of your financial momentum.',
-            style: Theme.of(context).textTheme.bodyLarge,
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Good morning,',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    Text(
+                      'Your overview',
+                      style: Theme.of(context).textTheme.headlineMedium,
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: 'Notifications',
+                onPressed: () {},
+                icon: const Icon(Icons.notifications_none_rounded),
+              ),
+              const SizedBox(width: 4),
+              InkWell(
+                onTap: onOpenSettings,
+                borderRadius: BorderRadius.circular(18),
+                child: CircleAvatar(
+                  radius: 19,
+                  child: Text(
+                    'NS',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 18),
+          _BudgetHero(monthlySpend: metrics.month),
+          const SizedBox(height: 14),
+          _InsightBanner(monthlySpend: metrics.month),
+          const SizedBox(height: 16),
           GridView.count(
             crossAxisCount: MediaQuery.sizeOf(context).width > 700 ? 3 : 2,
             shrinkWrap: true,
@@ -117,8 +145,8 @@ class DashboardPage extends ConsumerWidget {
                       subtitle: Text(
                         '${entry.value.count} transaction${entry.value.count == 1 ? '' : 's'}',
                       ),
-                      trailing: Text(
-                        '\u{20B9}${entry.value.amount.toStringAsFixed(0)}',
+                      trailing: PrivateAmountText(
+                        entry.value.amount,
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                     ),
@@ -145,8 +173,8 @@ class DashboardPage extends ConsumerWidget {
                       subtitle: Text(
                         '${expense.category} · ${MaterialLocalizations.of(context).formatShortDate(expense.expenseDate)}',
                       ),
-                      trailing: Text(
-                        '\u{20B9}${expense.amount.toStringAsFixed(0)}',
+                      trailing: PrivateAmountText(
+                        expense.amount,
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                     ),
@@ -184,8 +212,8 @@ class _MetricCard extends StatelessWidget {
             ),
           ),
           const Spacer(),
-          Text(
-            '\u{20B9}${value.toStringAsFixed(0)}',
+          PrivateAmountText(
+            value,
             style: Theme.of(
               context,
             ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
@@ -199,6 +227,118 @@ class _MetricCard extends StatelessWidget {
             ),
         ],
       ),
+    ),
+  );
+}
+
+class _BudgetHero extends StatelessWidget {
+  const _BudgetHero({required this.monthlySpend});
+  final double monthlySpend;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: NexSpendGradients.hero,
+        borderRadius: NexSpendRadii.extraLarge,
+        border: Border.all(color: scheme.primary.withValues(alpha: .3)),
+        boxShadow: NexSpendEffects.cardShadow,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'SPENT THIS MONTH',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    letterSpacing: 1.2,
+                    color: scheme.onPrimary.withValues(alpha: .72),
+                  ),
+                ),
+                const SizedBox(height: 5),
+                PrivateAmountText(
+                  monthlySpend,
+                  style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                    fontWeight: FontWeight.w900,
+                    color: scheme.onPrimary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  monthlySpend == 0
+                      ? 'Add an expense to get started'
+                      : 'Your live spending overview',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: scheme.onPrimary.withValues(alpha: .75),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(
+            width: 78,
+            height: 78,
+            child: TweenAnimationBuilder<double>(
+              duration: NexSpendMotion.slow,
+              tween: Tween(begin: 0, end: monthlySpend == 0 ? 0 : .72),
+              builder: (context, value, _) => Stack(
+                alignment: Alignment.center,
+                children: [
+                  CircularProgressIndicator(
+                    value: value,
+                    strokeWidth: 7,
+                    color: scheme.onPrimary,
+                    backgroundColor: scheme.onPrimary.withValues(alpha: .18),
+                  ),
+                  Text(
+                    '${(value * 100).round()}%',
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: scheme.onPrimary,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InsightBanner extends StatelessWidget {
+  const _InsightBanner({required this.monthlySpend});
+  final double monthlySpend;
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Theme.of(
+        context,
+      ).colorScheme.primaryContainer.withValues(alpha: .55),
+      borderRadius: NexSpendRadii.large,
+      border: Border.all(
+        color: Theme.of(context).colorScheme.primary.withValues(alpha: .3),
+      ),
+    ),
+    child: Row(
+      children: [
+        const Icon(Icons.auto_awesome_rounded),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            monthlySpend == 0
+                ? 'AI insight: log your first transaction to uncover smarter spending patterns.'
+                : 'AI insight: your Copilot can turn this live spending data into an action plan.',
+          ),
+        ),
+        const Icon(Icons.chevron_right_rounded),
+      ],
     ),
   );
 }
@@ -335,7 +475,7 @@ class _CategoryRow extends StatelessWidget {
           Row(
             children: [
               Expanded(child: Text(name)),
-              Text('\u{20B9}${amount.toStringAsFixed(0)}'),
+              PrivateAmountText(amount),
               const SizedBox(width: 8),
               Text('${(percentage * 100).toStringAsFixed(0)}%'),
             ],

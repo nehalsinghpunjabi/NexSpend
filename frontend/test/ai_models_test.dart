@@ -6,7 +6,7 @@ void main() {
     final answer = AiAnswer.fromJson({
       'type': 'spending',
       'answer':
-          '''{"type":"merchant","answer":"You spent ₹1,000 at Bata this month.","confidence":"high","highlights":["Bata"]}''',
+          '''You spent the most at Bata this month.\n{"type":"merchant","answer":"You spent ₹1,000 at Bata this month.","confidence":"high","highlights":["Bata"]}''',
       'confidence': 'medium',
       'highlights': ['debug payload'],
     });

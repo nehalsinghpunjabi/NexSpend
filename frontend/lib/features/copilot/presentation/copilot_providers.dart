@@ -7,6 +7,7 @@ import '../data/providers/openai_provider.dart';
 import '../data/repositories/provider_ai_repository.dart';
 import '../domain/analytics/financial_analytics.dart';
 import '../domain/models/ai_models.dart';
+import '../domain/models/copilot_session_memory.dart';
 import '../domain/providers/ai_provider.dart';
 import '../domain/repositories/ai_repository.dart';
 import '../domain/services/ai_service.dart';
@@ -35,12 +36,14 @@ final copilotControllerProvider =
     );
 
 class CopilotController extends Notifier<List<AiChatMessage>> {
+  var _memory = const CopilotSessionMemory();
   @override
   List<AiChatMessage> build() => const [];
 
   Future<void> send(String question) async {
     final trimmed = question.trim();
     if (trimmed.isEmpty) return;
+    _memory = _memory.updateFromMessage(trimmed);
     final now = DateTime.now();
     final pendingId = 'pending-${now.microsecondsSinceEpoch}';
     state = [
@@ -65,6 +68,7 @@ class CopilotController extends Notifier<List<AiChatMessage>> {
           .answer(
             question: trimmed,
             snapshot: ref.read(financialSnapshotProvider),
+            memory: _memory,
           );
       _replace(
         pendingId,
@@ -89,7 +93,11 @@ class CopilotController extends Notifier<List<AiChatMessage>> {
     }
   }
 
-  void clear() => state = const [];
+  void clear() {
+    _memory = const CopilotSessionMemory();
+    state = const [];
+  }
+
   void _replace(String id, AiChatMessage message) =>
       state = [for (final item in state) item.id == id ? message : item];
 }

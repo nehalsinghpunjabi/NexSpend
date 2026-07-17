@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/design_tokens.dart';
+import '../../../core/presentation/private_amount.dart';
 import '../domain/entities/expense.dart';
 
 class ExpenseCard extends StatelessWidget {
@@ -31,74 +32,85 @@ class ExpenseCard extends StatelessWidget {
         color: Theme.of(context).colorScheme.onError,
       ),
     ),
-    child: Container(
-      decoration: const BoxDecoration(
-        borderRadius: NexSpendRadii.large,
-        boxShadow: NexSpendEffects.cardShadow,
-      ),
-      child: Card(
-        child: InkWell(
+    child: Semantics(
+      button: true,
+      label:
+          '${expense.merchant}, ${expense.category}, \u{20B9}${expense.amount.toStringAsFixed(2)}',
+      hint: 'Tap to edit. Swipe left to delete.',
+      child: Container(
+        decoration: const BoxDecoration(
           borderRadius: NexSpendRadii.large,
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(18),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 25,
-                  backgroundColor: Theme.of(
-                    context,
-                  ).colorScheme.secondaryContainer,
-                  child: Text(_initials(expense.merchant)),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+          boxShadow: NexSpendEffects.cardShadow,
+        ),
+        child: Card(
+          child: InkWell(
+            borderRadius: NexSpendRadii.large,
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 25,
+                    backgroundColor: Theme.of(
+                      context,
+                    ).colorScheme.secondaryContainer,
+                    child: Text(_initials(expense.merchant)),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          expense.merchant,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w800),
+                        ),
+                        const SizedBox(height: 6),
+                        Wrap(
+                          spacing: 8,
+                          children: [
+                            Chip(
+                              label: Text(
+                                expense.category,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              visualDensity: VisualDensity.compact,
+                              side: BorderSide.none,
+                            ),
+                            Text(
+                              expense.paymentMethod,
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text(
-                        expense.merchant,
+                      PrivateAmountText(
+                        expense.amount,
+                        decimals: 2,
                         style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w800),
+                            ?.copyWith(fontWeight: FontWeight.w700),
                       ),
                       const SizedBox(height: 6),
-                      Wrap(
-                        spacing: 8,
-                        children: [
-                          Chip(
-                            label: Text(expense.category),
-                            visualDensity: VisualDensity.compact,
-                            side: BorderSide.none,
-                          ),
-                          Text(
-                            expense.paymentMethod,
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        ],
+                      Text(
+                        MaterialLocalizations.of(
+                          context,
+                        ).formatShortDate(expense.expenseDate),
+                        style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      '\u{20B9}${expense.amount.toStringAsFixed(2)}',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      MaterialLocalizations.of(
-                        context,
-                      ).formatShortDate(expense.expenseDate),
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

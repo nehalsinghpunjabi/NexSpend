@@ -103,7 +103,11 @@ sealed class AiAnswer {
     final jsonText = text
         .replaceFirst(RegExp(r'^```(?:json)?\s*', caseSensitive: false), '')
         .replaceFirst(RegExp(r'\s*```$'), '');
-    if (!jsonText.startsWith('{') || !jsonText.endsWith('}')) return text;
+    if (!jsonText.startsWith('{') || !jsonText.endsWith('}')) {
+      final embeddedPayloadStart = jsonText.indexOf(RegExp(r'\{\s*"type"'));
+      if (embeddedPayloadStart <= 0) return text;
+      return _answerText(jsonText.substring(embeddedPayloadStart));
+    }
     try {
       final decoded = jsonDecode(jsonText);
       return decoded is Map<Object?, Object?>

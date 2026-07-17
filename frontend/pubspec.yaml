@@ -39,6 +39,9 @@ dependencies:
   supabase_flutter: ^2.16.0
   fl_chart: ^1.2.0
   http: ^1.6.0
+  shared_preferences: ^2.5.5
+  flutter_markdown_plus: ^1.0.3
+  speech_to_text: ^7.3.0
 
 dev_dependencies:
   flutter_test:

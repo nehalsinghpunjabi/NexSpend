@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/entities/expense.dart';
+import '../../../core/presentation/private_amount.dart';
 import 'add_expense_sheet.dart';
 import 'expense_card.dart';
 import 'expense_empty_state.dart';
@@ -18,17 +19,53 @@ class ExpensesPage extends ConsumerWidget {
     final allExpenses = ref.watch(expensesProvider);
     final query = ref.watch(expenseQueryProvider);
     final visible = ref.watch(visibleExpensesProvider);
+    final availableCategories =
+        allExpenses.value
+            ?.map((expense) => expense.category)
+            .toSet()
+            .toList() ??
+        const <String>[];
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Expenses', style: Theme.of(context).textTheme.headlineMedium),
-            const SizedBox(height: 4),
-            Text(
-              'Search, filter, and manage every transaction.',
-              style: Theme.of(context).textTheme.bodyMedium,
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Expenses',
+                        style: Theme.of(context).textTheme.headlineMedium,
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        'Your spending, organised.',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton.filledTonal(
+                  onPressed: allExpenses.value == null
+                      ? null
+                      : () => _showFilters(context, allExpenses.value!),
+                  icon: const Icon(Icons.tune_rounded),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _ExpenseSummary(
+              total:
+                  allExpenses.value?.fold<double>(
+                    0.0,
+                    (sum, item) => sum + item.amount,
+                  ) ??
+                  0,
+              count: allExpenses.value?.length ?? 0,
             ),
             const SizedBox(height: 16),
             const ExpenseSearchField(),
@@ -74,6 +111,42 @@ class ExpensesPage extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 16),
+            SizedBox(
+              height: 38,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: [
+                  ChoiceChip(
+                    label: const Text('All'),
+                    selected: !query.filter.isActive,
+                    onSelected: (_) =>
+                        ref.read(expenseQueryProvider.notifier).clearFilters(),
+                  ),
+                  const SizedBox(width: 8),
+                  ...availableCategories.map(
+                    (category) => Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ChoiceChip(
+                        label: Text(category),
+                        selected: query.filter.categories.contains(category),
+                        onSelected: (selected) {
+                          final categories = {...query.filter.categories};
+                          selected
+                              ? categories.add(category)
+                              : categories.remove(category);
+                          ref
+                              .read(expenseQueryProvider.notifier)
+                              .setFilter(
+                                query.filter.copyWith(categories: categories),
+                              );
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
             Expanded(
               child: allExpenses.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
@@ -103,25 +176,50 @@ class ExpensesPage extends ConsumerWidget {
                           : 'Adjust or clear your filters to see more expenses.',
                     );
                   }
-                  return ListView.separated(
-                    itemCount: visible.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 10),
-                    itemBuilder: (_, index) {
-                      final expense = visible[index];
-                      return ExpenseCard(
-                        expense: expense,
-                        onTap: () => showModalBottomSheet<void>(
-                          context: context,
-                          isScrollControlled: true,
-                          builder: (_) => AddExpenseSheet(expense: expense),
+                  final groups = <String, List<Expense>>{};
+                  for (final expense in visible) {
+                    final date = expense.expenseDate;
+                    final key = MaterialLocalizations.of(
+                      context,
+                    ).formatMediumDate(date);
+                    (groups[key] ??= <Expense>[]).add(expense);
+                  }
+                  return ListView(
+                    children: [
+                      for (final entry in groups.entries) ...[
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(2, 8, 2, 8),
+                          child: Text(
+                            entry.key.toUpperCase(),
+                            style: Theme.of(context).textTheme.labelSmall
+                                ?.copyWith(
+                                  letterSpacing: 1.05,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
+                                ),
+                          ),
                         ),
-                        onDelete: () => _deleteExpense(
-                          context: context,
-                          ref: ref,
-                          expense: expense,
-                        ),
-                      );
-                    },
+                        for (final expense in entry.value)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: ExpenseCard(
+                              expense: expense,
+                              onTap: () => showModalBottomSheet<void>(
+                                context: context,
+                                isScrollControlled: true,
+                                builder: (_) =>
+                                    AddExpenseSheet(expense: expense),
+                              ),
+                              onDelete: () => _deleteExpense(
+                                context: context,
+                                ref: ref,
+                                expense: expense,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ],
                   );
                 },
               ),
@@ -208,4 +306,58 @@ class ExpensesPage extends ConsumerWidget {
     ExpenseSort.merchantAscending => 'Merchant A-Z',
     ExpenseSort.merchantDescending => 'Merchant Z-A',
   };
+}
+
+class _ExpenseSummary extends StatelessWidget {
+  const _ExpenseSummary({required this.total, required this.count});
+  final double total;
+  final int count;
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(18),
+    decoration: BoxDecoration(
+      color: Theme.of(context).colorScheme.surfaceContainerLow,
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(
+        color: Theme.of(
+          context,
+        ).colorScheme.outlineVariant.withValues(alpha: .55),
+      ),
+    ),
+    child: Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'TOTAL SPENT',
+                style: Theme.of(
+                  context,
+                ).textTheme.labelSmall?.copyWith(letterSpacing: 1.1),
+              ),
+              const SizedBox(height: 4),
+              PrivateAmountText(
+                total,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              '$count transactions',
+              style: Theme.of(context).textTheme.labelLarge,
+            ),
+            const SizedBox(height: 4),
+            Text('This month', style: Theme.of(context).textTheme.bodySmall),
+          ],
+        ),
+      ],
+    ),
+  );
 }

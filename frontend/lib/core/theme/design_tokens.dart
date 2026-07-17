@@ -13,6 +13,7 @@ abstract final class NexSpendRadii {
   static const small = BorderRadius.all(Radius.circular(12));
   static const medium = BorderRadius.all(Radius.circular(18));
   static const large = BorderRadius.all(Radius.circular(24));
+  static const extraLarge = BorderRadius.all(Radius.circular(28));
   static const pill = BorderRadius.all(Radius.circular(999));
 }
 
@@ -28,4 +29,11 @@ abstract final class NexSpendGradients {
     end: Alignment.bottomRight,
     colors: [Color(0xFF725BFF), Color(0xFFAF69FF)],
   );
+}
+
+abstract final class NexSpendMotion {
+  static const fast = Duration(milliseconds: 160);
+  static const standard = Duration(milliseconds: 240);
+  static const slow = Duration(milliseconds: 360);
+  static const enterCurve = Curves.easeOutCubic;
 }
