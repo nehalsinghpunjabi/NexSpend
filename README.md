@@ -4,6 +4,10 @@ AI-Powered Financial Copilot
 
 NexSpend helps users track expenses, understand spending habits, and make smarter financial decisions through AI-powered insights, voice expense tracking, and natural language expense entry.
 
+## AI Used
+
+GPT-5.6 (Codex) was used as a development assistant throughout the project. It helped accelerate Flutter development, UI implementation, Supabase integration, Riverpod state management, voice expense tracking, natural language expense parsing, AI Copilot functionality, analytics dashboards, and overall debugging. GPT-5.6 was also used to iterate on user experience, improve application architecture, resolve implementation issues, and rapidly prototype new features. All final decisions, integration, testing, and project direction were performed by the developer.
+
 ## Features
 
 ### Smart Expense Tracking
