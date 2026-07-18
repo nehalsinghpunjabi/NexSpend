@@ -10,17 +10,24 @@ class PrivateAmountText extends ConsumerWidget {
     this.style,
     this.decimals = 0,
   });
+
   final double amount;
   final TextStyle? style;
   final int decimals;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final hidden = ref.watch(
-      settingsControllerProvider.select((value) => value.privacyMode),
+    final settings = ref.watch(settingsControllerProvider);
+    final formatter = ref.watch(currencyFormatterProvider);
+    final value = formatter.formatOrMask(
+      amount,
+      hidden: settings.privacyMode,
+      decimals: decimals,
     );
-    return Text(
-      hidden ? '•••••' : '\u{20B9}${amount.toStringAsFixed(decimals)}',
-      style: style,
+    return Semantics(
+      label: settings.privacyMode ? 'Monetary amount hidden' : value,
+      excludeSemantics: true,
+      child: Text(value, style: style),
     );
   }
 }

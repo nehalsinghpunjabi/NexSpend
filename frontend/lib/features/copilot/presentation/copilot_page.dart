@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/formatters/currency_formatter.dart';
 import '../../../core/theme/design_tokens.dart';
 import '../../settings/presentation/settings_providers.dart';
 import '../domain/models/ai_models.dart';
@@ -37,12 +38,12 @@ class _CopilotPageState extends ConsumerState<CopilotPage> {
     final question = value ?? _controller.text;
     _controller.clear();
     ref.read(copilotControllerProvider.notifier).send(question);
-    Future<void>.delayed(const Duration(milliseconds: 100), () {
+    Future<void>.delayed(NexSpendMotion.fast, () {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOut,
+          duration: NexSpendMotion.standard,
+          curve: NexSpendMotion.enterCurve,
         );
       }
     });
@@ -304,6 +305,7 @@ class _ChatBubble extends ConsumerWidget {
         : message.isError
         ? scheme.onErrorContainer
         : scheme.onSurfaceVariant;
+    final formatter = ref.watch(currencyFormatterProvider);
     final text =
         !mine &&
             ref.watch(
@@ -311,16 +313,16 @@ class _ChatBubble extends ConsumerWidget {
             )
         ? message.text.replaceAll(
             RegExp(
-              r'(?:₹|Rs\.?|INR)\s*[0-9][0-9,]*(?:\.[0-9]{1,2})?',
+              '${CurrencyFormatter.acceptedAmountPrefixPattern}\\s*[0-9][0-9,]*(?:\\.[0-9]{1,2})?',
               caseSensitive: false,
             ),
-            '•••••',
+            formatter.formatOrMask(0, hidden: true),
           )
-        : message.text;
+        : formatter.normalizeResponseCurrencies(message.text);
     return TweenAnimationBuilder<double>(
-      duration: const Duration(milliseconds: 220),
+      duration: NexSpendMotion.standard,
       tween: Tween(begin: 0, end: 1),
-      curve: Curves.easeOutCubic,
+      curve: NexSpendMotion.enterCurve,
       builder: (context, value, child) => Opacity(
         opacity: value,
         child: Transform.translate(

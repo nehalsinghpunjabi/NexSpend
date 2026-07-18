@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../core/formatters/currency_formatter.dart';
+
 enum AppThemePreference { system, light, dark }
 
 class AppSettings {
@@ -50,6 +52,16 @@ class AppSettings {
 
 final settingsControllerProvider =
     NotifierProvider<SettingsController, AppSettings>(SettingsController.new);
+
+/// The one formatter consumed by presentation code. It updates immediately
+/// when the persisted settings state changes.
+final currencyFormatterProvider = Provider<CurrencyFormatter>(
+  (ref) => CurrencyFormatter(
+    ref.watch(
+      settingsControllerProvider.select((settings) => settings.currency),
+    ),
+  ),
+);
 
 class SettingsController extends Notifier<AppSettings> {
   static const _currencyKey = 'settings.currency';

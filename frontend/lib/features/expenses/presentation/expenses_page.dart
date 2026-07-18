@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 
+import '../../../core/theme/design_tokens.dart';
+import '../../../core/presentation/content_state.dart';
 import '../domain/entities/expense.dart';
 import '../../../core/presentation/private_amount.dart';
 import 'add_expense_sheet.dart';
@@ -70,7 +73,10 @@ class ExpensesPage extends ConsumerWidget {
             const SizedBox(height: 16),
             const ExpenseSearchField(),
             const SizedBox(height: 12),
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              alignment: WrapAlignment.spaceBetween,
               children: [
                 OutlinedButton.icon(
                   onPressed: allExpenses.value == null
@@ -81,7 +87,6 @@ class ExpensesPage extends ConsumerWidget {
                     query.filter.isActive ? 'Filters active' : 'Filters',
                   ),
                 ),
-                const Spacer(),
                 PopupMenuButton<ExpenseSort>(
                   onSelected: (sort) =>
                       ref.read(expenseQueryProvider.notifier).setSort(sort),
@@ -149,9 +154,12 @@ class ExpensesPage extends ConsumerWidget {
             const SizedBox(height: 12),
             Expanded(
               child: allExpenses.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (error, _) =>
-                    Center(child: Text('Could not load expenses: $error')),
+                loading: () =>
+                    const NexSpendLoadingState(label: 'Loading expenses…'),
+                error: (error, _) => NexSpendErrorState(
+                  message: 'Could not load expenses.',
+                  onRetry: () => ref.invalidate(expensesProvider),
+                ),
                 data: (items) {
                   if (items.isEmpty) {
                     return const ExpenseEmptyState(
@@ -271,6 +279,7 @@ class ExpensesPage extends ConsumerWidget {
       return false;
     }
     try {
+      HapticFeedback.mediumImpact();
       await ref.read(expenseActionsProvider).deleteExpense(expense);
       if (!context.mounted) {
         return true;
@@ -317,7 +326,7 @@ class _ExpenseSummary extends StatelessWidget {
     padding: const EdgeInsets.all(18),
     decoration: BoxDecoration(
       color: Theme.of(context).colorScheme.surfaceContainerLow,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: NexSpendRadii.large,
       border: Border.all(
         color: Theme.of(
           context,

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/design_tokens.dart';
 import '../../../core/presentation/private_amount.dart';
+import '../../../core/presentation/content_state.dart';
 import '../../expenses/presentation/add_expense_sheet.dart';
 import '../../expenses/presentation/expense_providers.dart';
 import 'dashboard_providers.dart';
@@ -12,12 +13,26 @@ class DashboardPage extends ConsumerWidget {
   final VoidCallback? onOpenSettings;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final expenses = ref.watch(expensesProvider);
+    if (expenses.isLoading && !expenses.hasValue) {
+      return const SafeArea(
+        child: NexSpendLoadingState(label: 'Loading overview…'),
+      );
+    }
+    if (expenses.hasError && !expenses.hasValue) {
+      return SafeArea(
+        child: NexSpendErrorState(
+          message: 'Could not load your overview.',
+          onRetry: () => ref.invalidate(expensesProvider),
+        ),
+      );
+    }
     final metrics = ref.watch(dashboardMetricsProvider);
     final categoryEntries = metrics.categories.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
     final merchantEntries = metrics.merchants.entries.toList()
       ..sort((a, b) => b.value.amount.compareTo(a.value.amount));
-    final recentExpenses = ref.watch(expensesProvider).value ?? const [];
+    final recentExpenses = expenses.value ?? const [];
     return SafeArea(
       child: ListView(
         padding: const EdgeInsets.fromLTRB(24, 24, 24, 124),
@@ -41,19 +56,25 @@ class DashboardPage extends ConsumerWidget {
               ),
               IconButton(
                 tooltip: 'Notifications',
-                onPressed: () {},
+                onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('You’re all caught up.')),
+                ),
                 icon: const Icon(Icons.notifications_none_rounded),
               ),
               const SizedBox(width: 4),
-              InkWell(
-                onTap: onOpenSettings,
-                borderRadius: BorderRadius.circular(18),
-                child: CircleAvatar(
-                  radius: 19,
-                  child: Text(
-                    'NS',
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
+              Semantics(
+                button: true,
+                label: 'Open settings',
+                child: InkWell(
+                  onTap: onOpenSettings,
+                  borderRadius: NexSpendRadii.medium,
+                  child: CircleAvatar(
+                    radius: 19,
+                    child: Text(
+                      'NS',
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
                 ),
@@ -84,7 +105,7 @@ class DashboardPage extends ConsumerWidget {
               _MetricCard(
                 label: 'Remaining budget',
                 value: 0,
-                detail: 'Coming soon',
+                detail: 'Set a budget in Copilot',
               ),
             ],
           ),
@@ -92,10 +113,15 @@ class DashboardPage extends ConsumerWidget {
           _Section(
             title: 'Monthly spending trend',
             subtitle: 'Track your financial pace over time',
-            child: SizedBox(
-              height: 190,
-              child: _LineChart(points: metrics.monthlyTrend),
-            ),
+            child: metrics.monthlyTrend.any((point) => point.amount > 0)
+                ? SizedBox(
+                    height: 190,
+                    child: _LineChart(points: metrics.monthlyTrend),
+                  )
+                : const _InlineEmptyState(
+                    message:
+                        'Your monthly trend will appear after you add expenses.',
+                  ),
           ),
           const SizedBox(height: 24),
           if (categoryEntries.isNotEmpty)
@@ -123,35 +149,41 @@ class DashboardPage extends ConsumerWidget {
           _Section(
             title: 'Spending history',
             subtitle: 'Your latest recorded activity',
-            child: SizedBox(
-              height: 160,
-              child: _LineChart(points: metrics.recentTrend),
-            ),
+            child: metrics.recentTrend.any((point) => point.amount > 0)
+                ? SizedBox(
+                    height: 160,
+                    child: _LineChart(points: metrics.recentTrend),
+                  )
+                : const _InlineEmptyState(
+                    message: 'Your seven-day activity will appear here.',
+                  ),
           ),
           const SizedBox(height: 24),
           _Section(
             title: 'Top merchants',
             subtitle: 'The places you spend with most often',
             child: Column(
-              children: merchantEntries
-                  .take(5)
-                  .map(
-                    (entry) => ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: CircleAvatar(
-                        child: Text(entry.key.substring(0, 1).toUpperCase()),
-                      ),
-                      title: Text(entry.key),
-                      subtitle: Text(
-                        '${entry.value.count} transaction${entry.value.count == 1 ? '' : 's'}',
-                      ),
-                      trailing: PrivateAmountText(
-                        entry.value.amount,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                    ),
-                  )
-                  .toList(),
+              children: merchantEntries.isEmpty
+                  ? const [Text('Add expenses to see your top merchants.')]
+                  : merchantEntries
+                        .take(5)
+                        .map(
+                          (entry) => ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: CircleAvatar(
+                              child: Text(_merchantInitial(entry.key)),
+                            ),
+                            title: Text(entry.key),
+                            subtitle: Text(
+                              '${entry.value.count} transaction${entry.value.count == 1 ? '' : 's'}',
+                            ),
+                            trailing: PrivateAmountText(
+                              entry.value.amount,
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                          ),
+                        )
+                        .toList(),
             ),
           ),
           const SizedBox(height: 24),
@@ -159,33 +191,55 @@ class DashboardPage extends ConsumerWidget {
             title: 'Recent expenses',
             subtitle: 'Your latest transactions',
             child: Column(
-              children: recentExpenses
-                  .take(4)
-                  .map(
-                    (expense) => ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      onTap: () => showModalBottomSheet<void>(
-                        context: context,
-                        isScrollControlled: true,
-                        builder: (_) => AddExpenseSheet(expense: expense),
-                      ),
-                      title: Text(expense.merchant),
-                      subtitle: Text(
-                        '${expense.category} · ${MaterialLocalizations.of(context).formatShortDate(expense.expenseDate)}',
-                      ),
-                      trailing: PrivateAmountText(
-                        expense.amount,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                    ),
-                  )
-                  .toList(),
+              children: recentExpenses.isEmpty
+                  ? const [Text('No recent expenses yet.')]
+                  : recentExpenses
+                        .take(4)
+                        .map(
+                          (expense) => ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            onTap: () => showModalBottomSheet<void>(
+                              context: context,
+                              isScrollControlled: true,
+                              builder: (_) => AddExpenseSheet(expense: expense),
+                            ),
+                            title: Text(expense.merchant),
+                            subtitle: Text(
+                              '${expense.category} · ${MaterialLocalizations.of(context).formatShortDate(expense.expenseDate)}',
+                            ),
+                            trailing: PrivateAmountText(
+                              expense.amount,
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                          ),
+                        )
+                        .toList(),
             ),
           ),
         ],
       ),
     );
   }
+}
+
+String _merchantInitial(String merchant) {
+  final trimmed = merchant.trim();
+  return trimmed.isEmpty ? '?' : trimmed.substring(0, 1).toUpperCase();
+}
+
+class _InlineEmptyState extends StatelessWidget {
+  const _InlineEmptyState({required this.message});
+  final String message;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: NexSpendSpace.lg),
+    child: Text(
+      message,
+      textAlign: TextAlign.center,
+      style: Theme.of(context).textTheme.bodyMedium,
+    ),
+  );
 }
 
 class _MetricCard extends StatelessWidget {
@@ -483,7 +537,7 @@ class _CategoryRow extends StatelessWidget {
           const SizedBox(height: 6),
           LinearProgressIndicator(
             value: percentage,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: NexSpendRadii.pill,
           ),
         ],
       ),

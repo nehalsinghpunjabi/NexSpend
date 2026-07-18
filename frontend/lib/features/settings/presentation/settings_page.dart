@@ -140,6 +140,7 @@ class SettingsPage extends ConsumerWidget {
   static String _currencyLabel(String currency) => switch (currency) {
     'USD' => 'US dollar (USD)',
     'EUR' => 'Euro (EUR)',
+    'GBP' => 'British pound (GBP)',
     _ => 'Indian rupee (INR)',
   };
   static String _themeLabel(AppThemePreference theme) => switch (theme) {
@@ -162,6 +163,7 @@ class SettingsPage extends ConsumerWidget {
           'INR': 'Indian rupee (INR)',
           'USD': 'US dollar (USD)',
           'EUR': 'Euro (EUR)',
+          'GBP': 'British pound (GBP)',
         },
         selected: selected,
       ),

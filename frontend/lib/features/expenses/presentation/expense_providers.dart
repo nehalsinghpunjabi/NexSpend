@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../auth/presentation/auth_providers.dart';
+import '../../settings/presentation/settings_providers.dart';
 import '../data/repositories/supabase_expense_repository.dart';
 import '../domain/entities/expense.dart';
 
@@ -44,7 +45,7 @@ class ExpenseActions {
             paymentMethod: paymentMethod,
             expenseDate: expenseDate,
             notes: normalizedNotes?.isEmpty ?? true ? null : normalizedNotes,
-            currency: 'INR',
+            currency: _ref.read(settingsControllerProvider).currency,
             createdAt: now,
             updatedAt: now,
           ),

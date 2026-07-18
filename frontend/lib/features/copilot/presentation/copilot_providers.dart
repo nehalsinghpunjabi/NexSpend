@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/config/ai_config.dart';
 import '../../expenses/presentation/expense_providers.dart';
+import '../../settings/presentation/settings_providers.dart';
 import '../data/providers/groq_provider.dart';
 import '../data/providers/openai_provider.dart';
 import '../data/repositories/provider_ai_repository.dart';
@@ -28,7 +29,10 @@ final aiRepositoryProvider = Provider<AiRepository>(
   (ref) => ProviderAiRepository(ref.watch(aiProviderProvider)),
 );
 final aiServiceProvider = Provider<AiService>(
-  (ref) => AiService(ref.watch(aiRepositoryProvider)),
+  (ref) => AiService(
+    ref.watch(aiRepositoryProvider),
+    ref.watch(currencyFormatterProvider),
+  ),
 );
 final copilotControllerProvider =
     NotifierProvider<CopilotController, List<AiChatMessage>>(
@@ -70,12 +74,13 @@ class CopilotController extends Notifier<List<AiChatMessage>> {
             snapshot: ref.read(financialSnapshotProvider),
             memory: _memory,
           );
+      final formatter = ref.read(currencyFormatterProvider);
       _replace(
         pendingId,
         AiChatMessage(
           id: pendingId,
           role: AiMessageRole.assistant,
-          text: answer.answer,
+          text: formatter.normalizeResponseCurrencies(answer.answer),
           createdAt: DateTime.now(),
         ),
       );

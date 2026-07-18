@@ -1,3 +1,5 @@
+import '../../../../core/formatters/currency_formatter.dart';
+
 class CopilotSessionMemory {
   const CopilotSessionMemory({
     this.monthlyIncome,
@@ -78,7 +80,7 @@ class CopilotSessionMemory {
 
   static double? _amountAfter(String text, String label) {
     final match = RegExp(
-      '$label[^₹0-9]*(?:₹|rs\\.?|inr)?\\s*([0-9][0-9,]*(?:\\.[0-9]+)?)',
+      '$label[^0-9]*(?:${CurrencyFormatter.acceptedAmountPrefixPattern})?\\s*([0-9][0-9,]*(?:\\.[0-9]+)?)',
       caseSensitive: false,
     ).firstMatch(text);
     return match == null

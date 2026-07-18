@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/theme/design_tokens.dart';
 import 'expense_query.dart';
 
 class ExpenseFilterSheet extends ConsumerStatefulWidget {
@@ -58,7 +60,7 @@ class _ExpenseFilterSheetState extends ConsumerState<ExpenseFilterSheet> {
                 height: 4,
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.outlineVariant,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: NexSpendRadii.pill,
                 ),
               ),
             ),

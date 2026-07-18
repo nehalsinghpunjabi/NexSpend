@@ -21,6 +21,7 @@ class _ExpenseSearchFieldState extends ConsumerState<ExpenseSearchField> {
 
   void _search(String value) {
     _debounce?.cancel();
+    setState(() {});
     _debounce = Timer(
       const Duration(milliseconds: 300),
       () => ref.read(expenseQueryProvider.notifier).setSearch(value),
@@ -37,6 +38,7 @@ class _ExpenseSearchFieldState extends ConsumerState<ExpenseSearchField> {
       suffixIcon: _controller.text.isEmpty
           ? null
           : IconButton(
+              tooltip: 'Clear search',
               icon: const Icon(Icons.close),
               onPressed: () {
                 _controller.clear();

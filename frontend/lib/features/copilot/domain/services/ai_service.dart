@@ -1,10 +1,12 @@
+import '../../../../core/formatters/currency_formatter.dart';
 import '../analytics/financial_analytics.dart';
 import '../models/ai_models.dart';
 import '../models/copilot_session_memory.dart';
 import '../repositories/ai_repository.dart';
 
 abstract final class NexSpendPrompt {
-  static const system = '''You are NexSpend AI, an intelligent financial copilot.
+  static const system =
+      '''You are NexSpend AI, an intelligent financial copilot.
 
 Your purpose is to help users understand spending habits, manage budgets, evaluate purchases, improve financial health, and make smarter financial decisions using their actual expense data.
 
@@ -99,28 +101,28 @@ Assistant:
 What is your monthly budget?
 
 User:
-₹15,000
+CURRENCY 15,000
 
 Store:
-monthly_budget = ₹15,000
+monthly_budget = CURRENCY 15,000
 
 Assistant:
 What is the item cost?
 
 User:
-₹25,000
+CURRENCY 25,000
 
 Store:
-purchase_price = ₹25,000
+purchase_price = CURRENCY 25,000
 
 Assistant:
 What is your monthly income?
 
 User:
-₹40,000
+CURRENCY 40,000
 
 Store:
-monthly_income = ₹40,000
+monthly_income = CURRENCY 40,000
 
 Do NOT confuse purchase prices with income.
 
@@ -133,13 +135,13 @@ Assistant:
 What is the cost?
 
 User:
-₹25,000
+CURRENCY 25,000
 
 Interpret:
-purchase_price = ₹25,000
+purchase_price = CURRENCY 25,000
 
 Do NOT interpret:
-monthly_income = ₹25,000
+monthly_income = CURRENCY 25,000
 
 ====================================================
 AFFORDABILITY ANALYSIS
@@ -225,7 +227,7 @@ Examples:
 - "Shopping spending increased 18% compared with last month."
 - "At your current pace, you are projected to exceed your budget."
 - "Food delivery accounts for more than half of your discretionary spending."
-- "You could save approximately ₹1,200 per month by reducing dining expenses."
+- "You could save approximately CURRENCY 1,200 per month by reducing dining expenses."
 
 Use actual financial data.
 
@@ -278,8 +280,9 @@ IMPORTANT RULES
 }
 
 class AiService {
-  const AiService(this._repository);
+  const AiService(this._repository, this._currencyFormatter);
   final AiRepository _repository;
+  final CurrencyFormatter _currencyFormatter;
 
   Future<AiAnswer> answer({
     required String question,
@@ -298,7 +301,8 @@ class AiService {
     }
     return _repository.ask(
       AiProviderRequest(
-        systemPrompt: NexSpendPrompt.system,
+        systemPrompt:
+            '${NexSpendPrompt.system}\n\nUse ${_currencyFormatter.code} (${_currencyFormatter.symbol}) for every monetary value in your response.',
         question: question,
         analytics: {
           ...snapshot.toAiPayload(),
@@ -321,28 +325,28 @@ class AiService {
           ? budget - snapshot.monthlyTotal
           : income! - snapshot.monthlyTotal;
       final basis = income != null && budget != null
-          ? 'your ₹${income.toStringAsFixed(0)} monthly income and ₹${budget.toStringAsFixed(0)} budget'
+          ? 'your ${_currencyFormatter.format(income)} monthly income and ${_currencyFormatter.format(budget)} budget'
           : income != null
-          ? 'your ₹${income.toStringAsFixed(0)} monthly income'
-          : 'your ₹${budget!.toStringAsFixed(0)} monthly budget';
+          ? 'your ${_currencyFormatter.format(income)} monthly income'
+          : 'your ${_currencyFormatter.format(budget!)} monthly budget';
       return RecommendationAnswer(
         confidence: budget != null && income != null ? 'medium' : 'low',
         highlights: [
-          'Estimated headroom: ₹${available.toStringAsFixed(0)}',
-          'Current month spending: ₹${snapshot.monthlyTotal.toStringAsFixed(0)}',
+          'Estimated headroom: ${_currencyFormatter.format(available)}',
+          'Current month spending: ${_currencyFormatter.format(snapshot.monthlyTotal)}',
         ],
         answer:
-            'Based on $basis and the information you have shared in this chat, you have roughly ₹${available.toStringAsFixed(0)} available before discretionary spending. I cannot guarantee affordability without the purchase price, so set aside a weekly amount and keep your current spending pace in check before buying.',
+            'Based on $basis and the information you have shared in this chat, you have roughly ${_currencyFormatter.format(available)} available before discretionary spending. I cannot guarantee affordability without the purchase price, so set aside a weekly amount and keep your current spending pace in check before buying.',
       );
     }
     return RecommendationAnswer(
       confidence: 'low',
       highlights: [
-        'This month: \u{20B9}${snapshot.monthlyTotal.toStringAsFixed(0)}',
+        'This month: ${_currencyFormatter.format(snapshot.monthlyTotal)}',
         'No budget is configured',
       ],
       answer:
-          'Based on your current spending, I cannot confidently determine whether you can afford this purchase because no monthly budget or income has been configured. Your current spending pace is \u{20B9}${snapshot.spendingVelocity.toStringAsFixed(0)} per day. Set a budget and compare the purchase with your remaining discretionary amount before deciding.',
+          'Based on your current spending, I cannot confidently determine whether you can afford this purchase because no monthly budget or income has been configured. Your current spending pace is ${_currencyFormatter.format(snapshot.spendingVelocity)} per day. Set a budget and compare the purchase with your remaining discretionary amount before deciding.',
     );
   }
 }

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
+import '../../../core/theme/design_tokens.dart';
 import '../../copilot/presentation/copilot_page.dart';
 import '../../dashboard/presentation/dashboard_page.dart';
 import '../../dashboard/presentation/insights_page.dart';
@@ -19,8 +21,8 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) => Scaffold(
     body: AnimatedSwitcher(
-      duration: const Duration(milliseconds: 260),
-      reverseDuration: const Duration(milliseconds: 210),
+      duration: NexSpendMotion.standard,
+      reverseDuration: NexSpendMotion.fast,
       transitionBuilder: (child, animation) => FadeTransition(
         opacity: animation,
         child: SlideTransition(
@@ -46,12 +48,18 @@ class _HomePageState extends State<HomePage> {
     ),
     bottomNavigationBar: _BottomNavigation(
       selectedIndex: _index,
-      onSelected: (index) => setState(() => _index = index),
-      onAdd: () => showModalBottomSheet<void>(
-        context: context,
-        isScrollControlled: true,
-        builder: (_) => const AddExpenseSheet(),
-      ),
+      onSelected: (index) {
+        if (index != _index) HapticFeedback.selectionClick();
+        setState(() => _index = index);
+      },
+      onAdd: () {
+        HapticFeedback.lightImpact();
+        showModalBottomSheet<void>(
+          context: context,
+          isScrollControlled: true,
+          builder: (_) => const AddExpenseSheet(),
+        );
+      },
     ),
   );
 
@@ -106,7 +114,7 @@ class _BottomNavigation extends StatelessWidget {
             Expanded(
               child: Center(
                 child: TweenAnimationBuilder<double>(
-                  duration: const Duration(milliseconds: 260),
+                  duration: NexSpendMotion.standard,
                   tween: Tween(begin: 0.92, end: 1),
                   curve: Curves.easeOutBack,
                   builder: (context, scale, child) =>
@@ -182,7 +190,7 @@ class _NavItem extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               AnimatedSwitcher(
-                duration: const Duration(milliseconds: 180),
+                duration: NexSpendMotion.fast,
                 child: Icon(
                   selected ? activeIcon : icon,
                   key: ValueKey(selected),

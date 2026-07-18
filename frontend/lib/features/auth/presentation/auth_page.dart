@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/config/supabase_config.dart';
 import '../../../core/theme/design_tokens.dart';
+import '../../settings/presentation/settings_providers.dart';
 import 'auth_providers.dart';
 
 class AuthPage extends ConsumerWidget {
@@ -84,11 +85,12 @@ class AuthPage extends ConsumerWidget {
   }
 }
 
-class _PreviewCards extends StatelessWidget {
+class _PreviewCards extends ConsumerWidget {
   const _PreviewCards();
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
+    final formatter = ref.watch(currencyFormatterProvider);
     return Column(
       children: [
         Card(
@@ -101,7 +103,7 @@ class _PreviewCards extends StatelessWidget {
                   child: Icon(Icons.trending_up_rounded, color: scheme.primary),
                 ),
                 const SizedBox(width: 12),
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -109,7 +111,9 @@ class _PreviewCards extends StatelessWidget {
                         'July Spending',
                         style: TextStyle(fontWeight: FontWeight.w700),
                       ),
-                      Text('₹2,847 of ₹3,500 budget'),
+                      Text(
+                        '${formatter.format(2847)} of ${formatter.format(3500)} budget',
+                      ),
                     ],
                   ),
                 ),
@@ -133,8 +137,8 @@ class _PreviewCards extends StatelessWidget {
             ),
             title: const Text('Nobu Restaurant'),
             subtitle: const Text('Food & Dining · Jul 9'),
-            trailing: const Text(
-              '-₹234.50',
+            trailing: Text(
+              '-${formatter.format(234.5, decimals: 2)}',
               style: TextStyle(fontWeight: FontWeight.w800),
             ),
           ),
@@ -147,8 +151,8 @@ class _PreviewCards extends StatelessWidget {
             borderRadius: NexSpendRadii.medium,
             border: Border.all(color: scheme.primary.withValues(alpha: .45)),
           ),
-          child: const Text(
-            '✧  AI Insight · You can save about ₹180/mo by reducing dining out. You’re on track to finish the month under budget!',
+          child: Text(
+            '✧  AI Insight · You can save about ${formatter.format(180)}/mo by reducing dining out. You’re on track to finish the month under budget!',
           ),
         ),
       ],

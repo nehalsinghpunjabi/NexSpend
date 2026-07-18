@@ -1,3 +1,5 @@
+import '../../../../core/formatters/currency_formatter.dart';
+
 class ParsedExpenseDraft {
   const ParsedExpenseDraft({
     required this.amount,
@@ -35,7 +37,7 @@ class NaturalLanguageExpenseParser {
 
   double? _amount(String text) {
     final match = RegExp(
-      r'(?:₹|rs\.?|inr|rupees?)\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)|\b([0-9][0-9,]*(?:\.[0-9]{1,2})?)\b',
+      '${CurrencyFormatter.acceptedAmountPrefixPattern}\\s*([0-9][0-9,]*(?:\\.[0-9]{1,2})?)|\\b([0-9][0-9,]*(?:\\.[0-9]{1,2})?)\\b',
       caseSensitive: false,
     ).firstMatch(text);
     final raw = match?.group(1) ?? match?.group(2);
@@ -45,10 +47,15 @@ class NaturalLanguageExpenseParser {
   String? _merchant(String text) {
     final patterns = [
       RegExp(
-        r'\b(?:at|on|for)\s+(.+?)(?:\s*(?:for|on|at)\s*(?:₹|rs\.?|inr|rupees?|\d)|$)',
+        r'\b(?:at|on|for)\s+(.+?)(?:\s*(?:for|on|at)\s*' +
+            CurrencyFormatter.acceptedAmountPrefixPattern +
+            r'|\d|$)',
         caseSensitive: false,
       ),
-      RegExp(r'^(.+?)\s+(?:₹|rs\.?|inr|rupees?|\d)', caseSensitive: false),
+      RegExp(
+        '^(.+?)\\s+(?:${CurrencyFormatter.acceptedAmountPrefixPattern}|\\d)',
+        caseSensitive: false,
+      ),
     ];
     for (final pattern in patterns) {
       final value = pattern.firstMatch(text)?.group(1)?.trim();

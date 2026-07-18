@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 import '../../../core/theme/design_tokens.dart';
+import '../../settings/presentation/settings_providers.dart';
 import '../domain/entities/expense.dart';
 import '../domain/services/natural_language_expense_parser.dart';
 import 'expense_providers.dart';
@@ -124,6 +126,7 @@ class _AddExpenseSheetState extends ConsumerState<AddExpenseSheet> {
         );
       }
       if (mounted) {
+        HapticFeedback.mediumImpact();
         Navigator.pop(context);
       }
     } catch (error) {
@@ -138,13 +141,14 @@ class _AddExpenseSheetState extends ConsumerState<AddExpenseSheet> {
   }
 
   Future<void> _parseNaturalLanguage(String text) async {
+    final formatter = ref.read(currencyFormatterProvider);
     final draft = _parser.parse(text);
     if (!draft.isComplete || draft.confidence < .7) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Please include an amount and merchant, for example “Spent ₹450 at Starbucks”.',
+              'Please include an amount and merchant, for example “Spent 450 at Starbucks”.',
             ),
           ),
         );
@@ -159,7 +163,7 @@ class _AddExpenseSheetState extends ConsumerState<AddExpenseSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('₹${draft.amount!.toStringAsFixed(0)} at ${draft.merchant}'),
+            Text('${formatter.format(draft.amount!)} at ${draft.merchant}'),
             const SizedBox(height: 6),
             Text('Category: ${draft.category}'),
           ],
@@ -233,160 +237,166 @@ class _AddExpenseSheetState extends ConsumerState<AddExpenseSheet> {
   }
 
   @override
-  Widget build(BuildContext context) => SafeArea(
-    child: Padding(
-      padding: EdgeInsets.fromLTRB(
-        24,
-        12,
-        24,
-        24 + MediaQuery.viewInsetsOf(context).bottom,
-      ),
-      child: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.outlineVariant,
-                    borderRadius: NexSpendRadii.pill,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _isEditing ? 'Edit expense' : 'Add expense',
-                      style: Theme.of(context).textTheme.headlineSmall,
+  Widget build(BuildContext context) {
+    final formatter = ref.watch(currencyFormatterProvider);
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          24,
+          12,
+          24,
+          24 + MediaQuery.viewInsetsOf(context).bottom,
+        ),
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.outlineVariant,
+                      borderRadius: NexSpendRadii.pill,
                     ),
                   ),
-                  IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close_rounded),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              TextField(
-                controller: _naturalLanguageController,
-                textCapitalization: TextCapitalization.sentences,
-                onSubmitted: _parseNaturalLanguage,
-                decoration: InputDecoration(
-                  labelText: 'Quick add by text',
-                  hintText: 'Spent ₹450 at Starbucks',
-                  prefixIcon: const Icon(Icons.auto_awesome_outlined),
-                  suffixIcon: IconButton(
-                    tooltip: 'Parse expense',
-                    icon: const Icon(Icons.arrow_upward_rounded),
-                    onPressed: () =>
-                        _parseNaturalLanguage(_naturalLanguageController.text),
-                  ),
                 ),
-              ),
-              const SizedBox(height: 10),
-              OutlinedButton.icon(
-                onPressed: _listening ? _speech.stop : _startVoiceEntry,
-                icon: Icon(
-                  _listening ? Icons.mic_rounded : Icons.mic_none_rounded,
-                ),
-                label: Text(
-                  _listening ? 'Listening… tap to stop' : 'Voice entry',
-                ),
-              ),
-              const SizedBox(height: 20),
-              TextFormField(
-                controller: _amountController,
-                autofocus: !_isEditing,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                decoration: const InputDecoration(
-                  labelText: 'Amount',
-                  prefixText: '₹ ',
-                ),
-                validator: (value) =>
-                    (double.tryParse(value?.trim() ?? '') ?? 0) > 0
-                    ? null
-                    : 'Enter an amount greater than zero',
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _merchantController,
-                textCapitalization: TextCapitalization.words,
-                decoration: const InputDecoration(labelText: 'Merchant'),
-                validator: (value) => value?.trim().isNotEmpty == true
-                    ? null
-                    : 'Merchant is required',
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                initialValue: _category,
-                decoration: const InputDecoration(labelText: 'Category'),
-                items: _categories
-                    .map(
-                      (item) =>
-                          DropdownMenuItem(value: item, child: Text(item)),
-                    )
-                    .toList(),
-                onChanged: (value) => setState(() => _category = value!),
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                initialValue: _paymentMethod,
-                decoration: const InputDecoration(labelText: 'Payment method'),
-                items: _paymentMethods
-                    .map(
-                      (item) =>
-                          DropdownMenuItem(value: item, child: Text(item)),
-                    )
-                    .toList(),
-                onChanged: (value) => setState(() => _paymentMethod = value!),
-              ),
-              const SizedBox(height: 16),
-              OutlinedButton.icon(
-                onPressed: _pickDate,
-                icon: const Icon(Icons.calendar_today_outlined),
-                label: Text(
-                  _expenseDate == null
-                      ? 'Select date'
-                      : 'Date: ${MaterialLocalizations.of(context).formatMediumDate(_expenseDate!)}',
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _notesController,
-                maxLines: 3,
-                textCapitalization: TextCapitalization.sentences,
-                decoration: const InputDecoration(
-                  labelText: 'Notes (optional)',
-                  alignLabelWithHint: true,
-                ),
-              ),
-              const SizedBox(height: 24),
-              FilledButton.icon(
-                onPressed: _isValid && !_saving ? _save : null,
-                icon: _saving
-                    ? const SizedBox.shrink()
-                    : Icon(
-                        _isEditing ? Icons.check_rounded : Icons.add_rounded,
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _isEditing ? 'Edit expense' : 'Add expense',
+                        style: Theme.of(context).textTheme.headlineSmall,
                       ),
-                label: _saving
-                    ? const SizedBox.square(
-                        dimension: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                TextField(
+                  controller: _naturalLanguageController,
+                  textCapitalization: TextCapitalization.sentences,
+                  onSubmitted: _parseNaturalLanguage,
+                  decoration: InputDecoration(
+                    labelText: 'Quick add by text',
+                    hintText: 'Spent 450 at Starbucks',
+                    prefixIcon: const Icon(Icons.auto_awesome_outlined),
+                    suffixIcon: IconButton(
+                      tooltip: 'Parse expense',
+                      icon: const Icon(Icons.arrow_upward_rounded),
+                      onPressed: () => _parseNaturalLanguage(
+                        _naturalLanguageController.text,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
+                  onPressed: _listening ? _speech.stop : _startVoiceEntry,
+                  icon: Icon(
+                    _listening ? Icons.mic_rounded : Icons.mic_none_rounded,
+                  ),
+                  label: Text(
+                    _listening ? 'Listening… tap to stop' : 'Voice entry',
+                  ),
+                ),
+                const SizedBox(height: 20),
+                TextFormField(
+                  controller: _amountController,
+                  autofocus: !_isEditing,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: 'Amount',
+                    prefixText: '${formatter.symbol} ',
+                  ),
+                  validator: (value) =>
+                      (double.tryParse(value?.trim() ?? '') ?? 0) > 0
+                      ? null
+                      : 'Enter an amount greater than zero',
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _merchantController,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(labelText: 'Merchant'),
+                  validator: (value) => value?.trim().isNotEmpty == true
+                      ? null
+                      : 'Merchant is required',
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  initialValue: _category,
+                  decoration: const InputDecoration(labelText: 'Category'),
+                  items: _categories
+                      .map(
+                        (item) =>
+                            DropdownMenuItem(value: item, child: Text(item)),
                       )
-                    : Text(_isEditing ? 'Update expense' : 'Save expense'),
-              ),
-            ],
+                      .toList(),
+                  onChanged: (value) => setState(() => _category = value!),
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  initialValue: _paymentMethod,
+                  decoration: const InputDecoration(
+                    labelText: 'Payment method',
+                  ),
+                  items: _paymentMethods
+                      .map(
+                        (item) =>
+                            DropdownMenuItem(value: item, child: Text(item)),
+                      )
+                      .toList(),
+                  onChanged: (value) => setState(() => _paymentMethod = value!),
+                ),
+                const SizedBox(height: 16),
+                OutlinedButton.icon(
+                  onPressed: _pickDate,
+                  icon: const Icon(Icons.calendar_today_outlined),
+                  label: Text(
+                    _expenseDate == null
+                        ? 'Select date'
+                        : 'Date: ${MaterialLocalizations.of(context).formatMediumDate(_expenseDate!)}',
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _notesController,
+                  maxLines: 3,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: const InputDecoration(
+                    labelText: 'Notes (optional)',
+                    alignLabelWithHint: true,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                FilledButton.icon(
+                  onPressed: _isValid && !_saving ? _save : null,
+                  icon: _saving
+                      ? const SizedBox.shrink()
+                      : Icon(
+                          _isEditing ? Icons.check_rounded : Icons.add_rounded,
+                        ),
+                  label: _saving
+                      ? const SizedBox.square(
+                          dimension: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Text(_isEditing ? 'Update expense' : 'Save expense'),
+                ),
+              ],
+            ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }

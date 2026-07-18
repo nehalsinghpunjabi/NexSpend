@@ -3,12 +3,28 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/design_tokens.dart';
 import '../../../core/presentation/private_amount.dart';
+import '../../../core/presentation/content_state.dart';
+import '../../expenses/presentation/expense_providers.dart';
 import 'dashboard_providers.dart';
 
 class InsightsPage extends ConsumerWidget {
   const InsightsPage({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final expenses = ref.watch(expensesProvider);
+    if (expenses.isLoading && !expenses.hasValue) {
+      return const SafeArea(
+        child: NexSpendLoadingState(label: 'Loading insights…'),
+      );
+    }
+    if (expenses.hasError && !expenses.hasValue) {
+      return SafeArea(
+        child: NexSpendErrorState(
+          message: 'Could not load insights.',
+          onRetry: () => ref.invalidate(expensesProvider),
+        ),
+      );
+    }
     final metrics = ref.watch(dashboardMetricsProvider);
     final entries = metrics.categories.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
@@ -24,22 +40,30 @@ class InsightsPage extends ConsumerWidget {
           const SizedBox(height: 20),
           _Section(
             title: 'Monthly spending',
-            child: _TrendBars(points: metrics.monthlyTrend),
+            child: metrics.monthlyTrend.any((point) => point.amount > 0)
+                ? _TrendBars(points: metrics.monthlyTrend)
+                : const _InsightsEmptyState(
+                    message: 'Add expenses to see your monthly spending trend.',
+                  ),
           ),
           const SizedBox(height: 20),
           _Section(
             title: 'Category breakdown',
-            child: Column(
-              children: entries
-                  .map(
-                    (entry) => _CategoryRow(
-                      name: entry.key,
-                      amount: entry.value,
-                      total: metrics.month,
-                    ),
+            child: entries.isEmpty
+                ? const _InsightsEmptyState(
+                    message: 'Your category breakdown will appear here.',
                   )
-                  .toList(),
-            ),
+                : Column(
+                    children: entries
+                        .map(
+                          (entry) => _CategoryRow(
+                            name: entry.key,
+                            amount: entry.value,
+                            total: metrics.month,
+                          ),
+                        )
+                        .toList(),
+                  ),
           ),
           const SizedBox(height: 20),
           _Section(
@@ -55,9 +79,7 @@ class InsightsPage extends ConsumerWidget {
                           (entry) => ListTile(
                             contentPadding: EdgeInsets.zero,
                             leading: CircleAvatar(
-                              child: Text(
-                                entry.key.substring(0, 1).toUpperCase(),
-                              ),
+                              child: Text(_merchantInitial(entry.key)),
                             ),
                             title: Text(
                               entry.key,
@@ -99,6 +121,26 @@ class InsightsPage extends ConsumerWidget {
       ),
     );
   }
+}
+
+String _merchantInitial(String merchant) {
+  final trimmed = merchant.trim();
+  return trimmed.isEmpty ? '?' : trimmed.substring(0, 1).toUpperCase();
+}
+
+class _InsightsEmptyState extends StatelessWidget {
+  const _InsightsEmptyState({required this.message});
+  final String message;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: NexSpendSpace.lg),
+    child: Text(
+      message,
+      textAlign: TextAlign.center,
+      style: Theme.of(context).textTheme.bodyMedium,
+    ),
+  );
 }
 
 class _InsightTile extends StatelessWidget {
@@ -225,12 +267,6 @@ class _TrendBars extends StatelessWidget {
       0.0,
       (result, item) => item.amount > result ? item.amount : result,
     );
-    assert(() {
-      debugPrint(
-        'Insights monthly series: ${points.map((point) => '${point.label}=${point.amount}').join(', ')}; hasNonZero=${points.any((point) => point.amount > 0)}',
-      );
-      return true;
-    }());
     return SizedBox(
       height: 140,
       child: Row(
